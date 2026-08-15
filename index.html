@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AlgoVision — Algorithm Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur px-6 py-4 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
+        <i class="fa-solid fa-chart-simple text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold text-white tracking-tight">AlgoVision</h1>
+        <p class="text-xs text-slate-400">Interactive Sorting & Graph Algorithm Studio</p>
+      </div>
+    </div>
+
+    <!-- Algorithm Selectors & Actions -->
+    <div class="flex flex-wrap items-center gap-3">
+      <select id="algoSelect" class="bg-slate-800 border border-slate-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+        <option value="bubble">Bubble Sort — O(N²)</option>
+        <option value="insertion">Insertion Sort — O(N²)</option>
+        <option value="selection">Selection Sort — O(N²)</option>
+        <option value="quick">Quick Sort — O(N log N)</option>
+      </select>
+
+      <button id="resetBtn" onclick="generateNewArray()" class="bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium px-4 py-2 rounded-lg border border-slate-700 transition">
+        <i class="fa-solid fa-arrows-rotate mr-1.5"></i> New Array
+      </button>
+
+      <button id="startBtn" onclick="startSorting()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-lg shadow-indigo-600/30 transition flex items-center gap-2">
+        <i class="fa-solid fa-play"></i> Run Algorithm
+      </button>
+    </div>
+  </header>
+
+  <!-- Controls Bar -->
+  <div class="bg-slate-900 border-b border-slate-800/80 px-6 py-3 flex flex-wrap items-center justify-between gap-6 text-sm text-slate-300">
+    <div class="flex items-center gap-4">
+      <label class="flex items-center gap-2">
+        <span>Array Size:</span>
+        <input type="range" id="sizeSlider" min="15" max="65" value="35" onchange="generateNewArray()" class="accent-indigo-500 cursor-pointer">
+        <span id="sizeValue" class="mono text-xs text-indigo-400">35</span>
+      </label>
+
+      <label class="flex items-center gap-2">
+        <span>Speed:</span>
+        <input type="range" id="speedSlider" min="5" max="100" value="40" class="accent-indigo-500 cursor-pointer">
+      </label>
+    </div>
+
+    <!-- Stats -->
+    <div class="flex items-center gap-6 mono text-xs">
+      <div>Comparisons: <span id="compCount" class="text-indigo-400 font-bold">0</span></div>
+      <div>Swaps: <span id="swapCount" class="text-emerald-400 font-bold">0</span></div>
+      <div>Status: <span id="algoStatus" class="text-amber-400">Ready</span></div>
+    </div>
+  </div>
+
+  <!-- Visualization Canvas Area -->
+  <main class="flex-1 flex items-end justify-center p-8 max-w-7xl mx-auto w-full">
+    <div id="barContainer" class="flex items-end justify-center gap-1.5 w-full h-[450px] bg-slate-900/40 border border-slate-800 rounded-2xl p-6 relative">
+      <!-- Bars dynamically injected here -->
+    </div>
+  </main>
+
+  <script>
+    let array = [];
+    let isSorting = false;
+    let comparisons = 0;
+    let swaps = 0;
+
+    function getDelay() {
+      const speed = document.getElementById('speedSlider').value;
+      return 110 - speed; // Higher value = faster
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function generateNewArray() {
+      if (isSorting) return;
+      const size = parseInt(document.getElementById('sizeSlider').value);
+      document.getElementById('sizeValue').innerText = size;
+      array = [];
+      comparisons = 0;
+      swaps = 0;
+      updateStats('Ready');
+
+      for (let i = 0; i < size; i++) {
+        array.push(Math.floor(Math.random() * 380) + 20);
+      }
+      renderBars();
+    }
+
+    function renderBars(activeIndices = [], completedIndices = []) {
+      const container = document.getElementById('barContainer');
+      container.innerHTML = array.map((val, idx) => {
+        let color = 'bg-indigo-500';
+        if (activeIndices.includes(idx)) color = 'bg-rose-500 shadow-lg shadow-rose-500/50 scale-105';
+        else if (completedIndices.includes(idx)) color = 'bg-emerald-400 shadow-sm';
+
+        return `<div class="flex-1 ${color} rounded-t-md transition-all duration-75" style="height: ${val}px;"></div>`;
+      }).join('');
+    }
+
+    function updateStats(status) {
+      document.getElementById('compCount').innerText = comparisons;
+      document.getElementById('swapCount').innerText = swaps;
+      document.getElementById('algoStatus').innerText = status;
+    }
+
+    async function startSorting() {
+      if (isSorting) return;
+      isSorting = true;
+      const algo = document.getElementById('algoSelect').value;
+      updateStats('Running...');
+
+      if (algo === 'bubble') await bubbleSort();
+      else if (algo === 'selection') await selectionSort();
+      else if (algo === 'insertion') await insertionSort();
+      else if (algo === 'quick') await quickSort(0, array.length - 1);
+
+      updateStats('Completed');
+      const all = array.map((_, i) => i);
+      renderBars([], all);
+      isSorting = false;
+    }
+
+    async function bubbleSort() {
+      const n = array.length;
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n - i - 1; j++) {
+          comparisons++;
+          renderBars([j, j + 1]);
+          updateStats('Running...');
+          await sleep(getDelay());
+
+          if (array[j] > array[j + 1]) {
+            swaps++;
+            let temp = array[j];
+            array[j] = array[j + 1];
+            array[j + 1] = temp;
+            renderBars([j, j + 1]);
+            await sleep(getDelay());
+          }
+        }
+      }
+    }
+
+    async function selectionSort() {
+      const n = array.length;
+      for (let i = 0; i < n; i++) {
+        let minIdx = i;
+        for (let j = i + 1; j < n; j++) {
+          comparisons++;
+          renderBars([minIdx, j]);
+          updateStats('Running...');
+          await sleep(getDelay());
+          if (array[j] < array[minIdx]) minIdx = j;
+        }
+        if (minIdx !== i) {
+          swaps++;
+          let temp = array[i];
+          array[i] = array[minIdx];
+          array[minIdx] = temp;
+        }
+      }
+    }
+
+    async function insertionSort() {
+      const n = array.length;
+      for (let i = 1; i < n; i++) {
+        let key = array[i];
+        let j = i - 1;
+        while (j >= 0 && array[j] > key) {
+          comparisons++;
+          swaps++;
+          array[j + 1] = array[j];
+          j = j - 1;
+          renderBars([j + 1, i]);
+          await sleep(getDelay());
+        }
+        array[j + 1] = key;
+      }
+    }
+
+    async function quickSort(low, high) {
+      if (low < high) {
+        let pi = await partition(low, high);
+        await quickSort(low, pi - 1);
+        await quickSort(pi + 1, high);
+      }
+    }
+
+    async function partition(low, high) {
+      let pivot = array[high];
+      let i = low - 1;
+      for (let j = low; j < high; j++) {
+        comparisons++;
+        renderBars([j, high]);
+        await sleep(getDelay());
+        if (array[j] < pivot) {
+          i++;
+          swaps++;
+          let temp = array[i];
+          array[i] = array[j];
+          array[j] = temp;
+        }
+      }
+      swaps++;
+      let temp = array[i + 1];
+      array[i + 1] = array[high];
+      array[high] = temp;
+      return i + 1;
+    }
+
+    generateNewArray();
+  </script>
+</body>
+</html>
